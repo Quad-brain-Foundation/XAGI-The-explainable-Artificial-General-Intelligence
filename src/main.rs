@@ -1,25 +1,26 @@
 mod core;
-mod runtime;
-mod utils;
 
-use core::{meaning_engine::MeaningEngine, reasoning_layer::ReasoningLayer};
-use runtime::{exec_context::ExecContext, meta_recreation::SelfRecreator};
+use core::{
+    meaning_engine::MeaningEngine,
+    reasoning_layer::ReasoningLayer,
+    memory::MemoryStore,
+    self_recreator::SelfRecreator,
+};
 
 fn main() {
-    println!("🧠 XAGI: Explainable Artificial General Intelligence - Booting...");
+    let engine = MeaningEngine::new();
+    let reasoner = ReasoningLayer::new();
+    let mut memory = MemoryStore::new();
+    let recreator = SelfRecreator::new();
 
-    let mut context = ExecContext::new();
-    let mut engine = MeaningEngine::new();
-    let mut reasoner = ReasoningLayer::new();
+    recreator.bootstrap();
 
-    // initialize self model
-    let mut self_recreator = SelfRecreator::new();
-    self_recreator.bootstrap();
+    let input = "XAGI explains itself";
+    let graph = engine.parse(input);
+    let out = reasoner.infer(&graph);
 
-    // run example reasoning cycle
-    let input = "Explain the reason behind self-recreation";
-    let meaning = engine.parse(input);
-    let result = reasoner.infer(meaning, &mut context);
+    memory.store(&out);
 
-    println!("🧩 Result:\n{}", result);
+    println!("📌 Output: {}", out);
+    println!("🧠 Memory: {:?}", memory.recall());
 }
