@@ -5,6 +5,7 @@ pub mod self_recreator;
 pub mod sp_backend;
 pub mod sp_exec;
 pub mod onnx_export;
+pub mod auto_scan;    // ← 이것 추가
 
 
 #[derive(Debug, Clone)]
