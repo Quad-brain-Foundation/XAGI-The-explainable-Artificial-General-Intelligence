@@ -2,6 +2,7 @@ pub mod meaning_engine;
 pub mod reasoning_layer;
 pub mod memory;
 pub mod self_recreator;
+pub mod sp_backend;
 
 #[derive(Debug, Clone)]
 pub struct MeaningNode {
