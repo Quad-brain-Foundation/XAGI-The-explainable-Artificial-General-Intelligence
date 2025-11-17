@@ -34,7 +34,7 @@ jobs:
         with:
           toolchain: stable
 
-      # 3) Cargo cache
+      # 3) Cargo Cache
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -48,12 +48,12 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      # 5) Test (Optional)
+      # 5) Test (Optional 오류 무시)
       - name: Test
         run: cargo test --verbose || true
 
-      # 6) Upload binary
-      - name: Upload Build Artifact
+      # 6) Upload Binary Artifacts
+      - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: xagi-${{ matrix.os }}
@@ -61,7 +61,7 @@ jobs:
             target/release/xagi*
           if-no-files-found: ignore
 
-      # 7) Upload AI format artifacts (existing AI formats)
+      # 7) AI Model Files (Torch/ONNX/etc)
       - name: Upload AI Model Files
         uses: actions/upload-artifact@v4
         with:
@@ -86,11 +86,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 🔥 해결방법 2: 기존 Release 삭제 (핵심)
+      - name: Delete existing release (if exists)
+        run: |
+          gh release delete ${{ github.ref_name }} -y || true
+          gh release delete main -y || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 1) 다운받기
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts/
 
+      # 2) SHA256SUMS 생성
       - name: Generate SHA256SUMS
         run: |
           cd artifacts
@@ -98,7 +108,7 @@ jobs:
             sha256sum "$file" >> SHA256SUMS.txt
           done
 
-      # Release 생성 + 모든 AI 파일 + ONNX 포함
+      # 3) Release 생성
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -106,16 +116,23 @@ jobs:
           name: "XAGI Release ${{ github.ref_name }}"
           body: |
             ## 🚀 XAGI Automated Release
-            ### 포함된 파일:
-            - Linux / macOS / Windows 실행 파일
-            - ONNX model: `.onnx`
-            - PyTorch formats: `.pt`, `.pth`
-            - TensorFlow formats: `.ckpt`, `.pb`
-            - Safe-tensors: `.safetensors`
-            - Binary model snapshots: `.bin`
+            포함된 구성:
+            - Multi-OS Binaries (Linux/macOS/Windows)
+            - ONNX 모델 (.onnx)
+            - Torch 형식 (.pt / .pth)
+            - TensorFlow (.ckpt / .pb)
+            - SafeTensor (.safetensors)
+            - Binary 모델 스냅샷 (.bin)
             - SHA256SUMS
-          files: |
-            artifacts/**
           draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4) Release 파일 업로드
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
