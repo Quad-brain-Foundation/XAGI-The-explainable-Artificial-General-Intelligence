@@ -1,4 +1,4 @@
-use super::{MeaningGraph, MeaningNode};
+use super::{MeaningGraph, MeaningNode, MeaningEdge};
 
 pub struct SpongeBackend;
 
@@ -7,17 +7,35 @@ impl SpongeBackend {
         Self
     }
 
-    /// meaning graph → 기본 SpongeLang 코드로 변환
+    /// Convert MeaningGraph → SpongeLang AST (full)
     pub fn generate(&self, graph: &MeaningGraph) -> String {
         let mut out = String::new();
 
-        out.push_str("(sp-code\n");
+        out.push_str("(sp-ast\n");
 
+        // Nodes
+        out.push_str("  (nodes\n");
         for MeaningNode { id, token } in &graph.nodes {
-            out.push_str(&format!("  (node {} \"{}\")\n", id, token));
+            out.push_str(&format!("    (node {} \"{}\")\n", id, escape(token)));
         }
+        out.push_str("  )\n\n");
 
-        out.push_str(")");
+        // Edges
+        out.push_str("  (links\n");
+        for MeaningEdge { from, to, relation } in &graph.edges {
+            out.push_str(&format!(
+                "    (link {} {} \"{}\")\n",
+                from, to, escape(relation)
+            ));
+        }
+        out.push_str("  )\n");
+
+        out.push_str(")\n");
         out
     }
+}
+
+/// escape strings for SpongeLang
+fn escape(s: &str) -> String {
+    s.replace("\"", "\\\"")
 }
