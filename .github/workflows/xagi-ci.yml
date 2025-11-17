@@ -2,17 +2,18 @@ name: XAGI CI & Release
 
 on:
   push:
+    branches: [ main ]
+  push:
     tags:
-      - "v*.*.*"        # 릴리즈는 태그에서만 동작
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-
   build-test:
-    name: Build & Test (${{ matrix.os }})
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -23,8 +24,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -46,17 +45,18 @@ jobs:
       - name: Test
         run: cargo test --verbose || true
 
-      - name: Upload Binary
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: xagi-${{ matrix.os }}
-          path: target/release/xagi*
+          path: |
+            target/release/xagi*
           if-no-files-found: ignore
 
       - name: Upload AI Model Files
         uses: actions/upload-artifact@v4
         with:
-          name: xagi-ai-models-${{ matrix.os }}
+          name: ai-files-${{ matrix.os }}
           path: |
             **/*.onnx
             **/*.pt
@@ -69,22 +69,25 @@ jobs:
 
 
   release:
-    name: Create Release
+    name: Release
     runs-on: ubuntu-latest
     needs: build-test
+
+    # 🔥 Release는 태그 push가 아닐 경우 스킵
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔥 기존 Release 삭제 (핵심 해결책 #2)
-      - name: Delete existing release (if exists)
+      # 🔥 기존 Release 삭제 (중복 충돌 제거)
+      - name: Delete existing release
         run: |
           gh release delete ${{ github.ref_name }} -y || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts/
@@ -92,20 +95,22 @@ jobs:
       - name: Generate SHA256SUMS
         run: |
           cd artifacts
-          for file in $(find . -type f); do
-            sha256sum "$file" >> SHA256SUMS.txt
-          done
+          find . -type f -exec sha256sum {} \; > SHA256SUMS.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}     # 반드시 TAG 필요
+          tag_name: ${{ github.ref_name }}
           name: "XAGI Release ${{ github.ref_name }}"
           body: |
             ## 🚀 XAGI Automated Release
-            포함 파일:
-            - Multi-OS Binaries
-            - AI Model formats (.onnx .pt .pth .ckpt .pb .bin .safetensors)
+            포함된 파일:
+            - Multi-OS binaries
+            - ONNX model (.onnx)
+            - PyTorch (.pt, .pth)
+            - TensorFlow (.ckpt, .pb)
+            - SafeTensors (.safetensors)
+            - binary snapshots (.bin)
             - SHA256SUMS
           files: |
             artifacts/**
