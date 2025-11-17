@@ -2,65 +2,82 @@ mod core;
 
 use core::{
     meaning_engine::MeaningEngine,
-    sp_backend::SpongeBackend,
-    sp_exec::SpongeExecutor,
     reasoning_layer::ReasoningLayer,
     memory::MemoryStore,
     self_recreator::SelfRecreator,
+    sp_backend::SpongeBackend,
     onnx_export::OnnxExporter,
+    auto_scan::RepoAutoScanner,
 };
 
 fn main() {
-    println!("🚀 XAGI: Explainable Artificial General Intelligence");
+    println!("🚀 XAGI: Global Meaning Learner");
 
-    // 1) 핵심 모듈 초기화
+    // 코어 엔진들
     let engine = MeaningEngine::new();
     let backend = SpongeBackend::new();
-    let executor = SpongeExecutor::new();
     let reasoner = ReasoningLayer::new();
     let mut memory = MemoryStore::new();
     let recreator = SelfRecreator::new();
     let onnx = OnnxExporter::new();
 
-    // 2) Self-recreation 부트스트랩
     recreator.bootstrap();
 
-    // 3) 입력 텍스트
-    let input = "XAGI explains itself using meaning graphs";
+    // ======================================================
+    // 1) Freeing-the-Lang 전체 리포 자동 스캔
+    // ======================================================
+    let scanner = RepoAutoScanner::new();
 
-    println!("📥 Input: {}", input);
+    let repos = vec![
+        "https://github.com/Freeing-the-Lang/Go-like-rust",
+        "https://github.com/Freeing-the-Lang/Sponge-lang",
+        "https://github.com/Freeing-the-Lang/Swift-with-no-llvm",
+        "https://github.com/Freeing-the-Lang/Rust-like-cplusplus",
+        "https://github.com/Freeing-the-Lang/Pure-rust-no-llvm",
+        "https://github.com/Quad-brain-Foundation/XAGI-The-explainable-Artificial-General-Intelligence"
+    ];
 
-    // 4) 의미 그래프 생성
-    let graph = engine.parse(input);
+    println!("📡 Auto-Scanning {} repos...", repos.len());
 
-    // 5) SpongeLang AST 생성
-    let sp_code = backend.generate(&graph);
-    println!("\n🧽 Generated SpongeLang AST:\n{}\n", sp_code);
-
-    // 6) Sponge-lang VM 실행 (있으면 실행, 없으면 에러 무시)
-    match executor.run(&sp_code, "output.sp") {
-        Ok(out) => {
-            println!("🧠 SpongeVM Output:\n{}", out);
-            memory.store(&out);
-        }
-        Err(err) => {
-            println!("⚠️ SpongeVM not executed or error:\n{}\n(Continuing...)", err);
+    let mut all_sources = String::new();
+    for repo in repos {
+        if let Ok(code) = scanner.fetch(repo) {
+            println!("📥 Ingested from: {}", repo);
+            all_sources.push_str(&code);
+        } else {
+            println!("⚠️ Scan failed: {}", repo);
         }
     }
 
-    // 7) ONNX 파일 export
-    match onnx.export(&graph, "xagi_model.onnx") {
-        Ok(_) => println!("📤 ONNX Exported → xagi_model.onnx"),
-        Err(e) => println!("❌ ONNX Export Error: {}", e),
-    }
+    // ======================================================
+    // 2) 자동 의미 학습
+    // ======================================================
+    println!("🧠 Meaning learning from all ingested sources...");
+    let graph = engine.parse(&all_sources);
 
-    // 8) Reasoning 단계
+    // ======================================================
+    // 3) XAGI Reasoning
+    // ======================================================
     let reasoning_output = reasoner.infer(&graph);
-    println!("\n🧩 Reasoning Output: {}", reasoning_output);
     memory.store(&reasoning_output);
 
-    // 9) 메모리 출력
-    println!("\n🧠 Memory State: {:?}", memory.recall());
+    // ======================================================
+    // 4) SpongeLang AST 출력
+    // ======================================================
+    let sp_code = backend.generate(&graph);
+    println!("🧽 SpongeLang AST Ready.");
 
-    println!("\n✅ XAGI pipeline completed.");
+    // ======================================================
+    // 5) ONNX Export
+    // ======================================================
+    if let Ok(_) = onnx.export(&graph, "xagi_model.onnx") {
+        println!("📤 Exported ONNX model → xagi_model.onnx");
+    }
+
+    // ======================================================
+    // 6) Memory 확인
+    // ======================================================
+    println!("🧠 Memory Snapshot: {:?}", memory.recall());
+
+    println!("✨ XAGI auto-scan pipeline completed.");
 }
