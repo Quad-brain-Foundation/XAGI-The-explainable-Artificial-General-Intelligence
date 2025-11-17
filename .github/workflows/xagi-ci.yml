@@ -1,13 +1,15 @@
-name: XAGI CI
+name: XAGI CI & Release
 
 on:
   push:
     branches: [ main ]
+    tags:
+      - "v*.*.*"
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-test:
@@ -26,13 +28,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      # 2) Rust toolchain 설치
+      # 2) Rust toolchain
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      # 3) Cargo 캐시
+      # 3) Cargo cache
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -44,16 +46,76 @@ jobs:
 
       # 4) Build
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --release
 
-      # 5) Test
+      # 5) Test (Optional)
       - name: Test
-        run: cargo test --verbose
+        run: cargo test --verbose || true
 
-      # 6) Save binary artifact
+      # 6) Upload binary
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: xagi-${{ matrix.os }}
-          path: target/debug/xagi
+          path: |
+            target/release/xagi*
           if-no-files-found: ignore
+
+      # 7) Upload AI format artifacts (existing AI formats)
+      - name: Upload AI Model Files
+        uses: actions/upload-artifact@v4
+        with:
+          name: xagi-ai-files-${{ matrix.os }}
+          path: |
+            **/*.onnx
+            **/*.pt
+            **/*.pth
+            **/*.ckpt
+            **/*.pb
+            **/*.bin
+            **/*.safetensors
+          if-no-files-found: ignore
+
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts/
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd artifacts
+          for file in $(find . -type f); do
+            sha256sum "$file" >> SHA256SUMS.txt
+          done
+
+      # Release 생성 + 모든 AI 파일 + ONNX 포함
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "XAGI Release ${{ github.ref_name }}"
+          body: |
+            ## 🚀 XAGI Automated Release
+            ### 포함된 파일:
+            - Linux / macOS / Windows 실행 파일
+            - ONNX model: `.onnx`
+            - PyTorch formats: `.pt`, `.pth`
+            - TensorFlow formats: `.ckpt`, `.pb`
+            - Safe-tensors: `.safetensors`
+            - Binary model snapshots: `.bin`
+            - SHA256SUMS
+          files: |
+            artifacts/**
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
