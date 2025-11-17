@@ -4,6 +4,8 @@ pub mod memory;
 pub mod self_recreator;
 pub mod sp_backend;
 pub mod sp_exec;
+pub mod onnx_export;
+
 
 #[derive(Debug, Clone)]
 pub struct MeaningNode {
