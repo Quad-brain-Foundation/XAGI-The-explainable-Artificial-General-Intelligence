@@ -1,3 +1,5 @@
+use super::{MeaningGraph, MeaningNode, MeaningEdge};
+
 pub struct MeaningEngine;
 
 impl MeaningEngine {
